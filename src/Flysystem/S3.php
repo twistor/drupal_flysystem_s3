@@ -19,14 +19,14 @@ use League\Flysystem\AwsS3v2\AwsS3Adapter;
  */
 class S3 implements FlysystemPluginInterface {
 
-  use FlysystemUrlTrait;
+    use FlysystemUrlTrait { getExternalUrl as getDownloadlUrl; }
 
   /**
-   * Plugin configuration.
+   * The S3 Flysystem adapter.
    *
-   * @var array
+   * @var \League\Flysystem\AdapterInterface
    */
-  protected $configuration;
+  protected $adapter;
 
   /**
    * The S3 bucket.
@@ -36,11 +36,11 @@ class S3 implements FlysystemPluginInterface {
   protected $bucket;
 
   /**
-   * The path prefix inside the bucket.
+   * The S3 client.
    *
-   * @var string
+   * @var \Aws\Common\Client\AwsClientInterface
    */
-  protected $prefix;
+  protected $client;
 
   /**
    * Options to pass into \League\Flysystem\AwsS3v2\AwsS3Adapter.
@@ -50,6 +50,13 @@ class S3 implements FlysystemPluginInterface {
   protected $options;
 
   /**
+   * The path prefix inside the bucket.
+   *
+   * @var string
+   */
+  protected $prefix;
+
+  /**
    * Constructs a S3v2 object.
    *
    * @param array $configuration
@@ -57,7 +64,7 @@ class S3 implements FlysystemPluginInterface {
    */
   public function __construct(array $configuration) {
     $this->bucket = $configuration['bucket'];
-    $this->prefix = isset($configuration['prefix']) ? $configuration['prefix'] : '';
+    $this->prefix = isset($configuration['prefix']) ? (string) $configuration['prefix'] : NULL;
     $this->options = !empty($configuration['options']) ? $configuration['options'] : [];
 
     unset(
@@ -66,15 +73,33 @@ class S3 implements FlysystemPluginInterface {
       $configuration['options']
     );
 
-    $this->configuration = $configuration;
+    // @todo Put this in the container.
+    $this->client = S3Client::factory($configuration);
   }
 
   /**
    * {@inheritdoc}
    */
   public function getAdapter() {
-    $client = S3Client::factory($this->configuration);
-    return new AwsS3Adapter($client, $this->bucket, $this->prefix, $this->options);
+    if (!isset($this->adapter)) {
+      $this->adapter = new AwsS3Adapter($this->client, $this->bucket, $this->prefix, $this->options);
+    }
+
+    return $this->adapter;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getExternalUrl($uri) {
+    $target = $this->getTarget($uri);
+
+    // Support image style generation.
+    if (strpos($target, 'styles/') === 0 && !$this->getAdapter()->has($target)) {
+      return $this->getDownloadlUrl($uri);
+    }
+
+    return $client->getObjectUrl($this->bucket, $target);
   }
 
 }
