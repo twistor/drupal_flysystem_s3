@@ -43,15 +43,30 @@ class S3 implements FlysystemPluginInterface {
   protected $prefix;
 
   /**
+   * Options to pass into \League\Flysystem\AwsS3v2\AwsS3Adapter.
+   *
+   * @var array
+   */
+  protected $options;
+
+  /**
    * Constructs a S3v2 object.
    *
    * @param array $configuration
    *   Plugin configuration array.
    */
   public function __construct(array $configuration) {
-    $this->configuration = $configuration;
-    $this->bucket = $configuration['bucket-name'];
+    $this->bucket = $configuration['bucket'];
     $this->prefix = isset($configuration['prefix']) ? $configuration['prefix'] : '';
+    $this->options = !empty($configuration['options']) ? $configuration['options'] : [];
+
+    unset(
+      $configuration['bucket'],
+      $configuration['prefix'],
+      $configuration['options']
+    );
+
+    $this->configuration = $configuration;
   }
 
   /**
@@ -59,7 +74,7 @@ class S3 implements FlysystemPluginInterface {
    */
   public function getAdapter() {
     $client = S3Client::factory($this->configuration);
-    return new AwsS3Adapter($client, $this->bucket, $this->prefix);
+    return new AwsS3Adapter($client, $this->bucket, $this->prefix, $this->options);
   }
 
 }
