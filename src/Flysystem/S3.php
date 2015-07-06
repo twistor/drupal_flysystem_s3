@@ -99,7 +99,7 @@ class S3 implements FlysystemPluginInterface {
       return $this->getDownloadlUrl($uri);
     }
 
-    return $client->getObjectUrl($this->bucket, $target);
+    return $this->client->getExternalUrl($this->bucket, $target);
   }
 
 }
