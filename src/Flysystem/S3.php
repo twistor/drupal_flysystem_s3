@@ -8,6 +8,7 @@
 namespace Drupal\flysystem_s3\Flysystem;
 
 use Aws\S3\S3Client;
+use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\flysystem\Plugin\FlysystemPluginInterface;
 use Drupal\flysystem\Plugin\FlysystemUrlTrait;
 use League\Flysystem\AwsS3v2\AwsS3Adapter;
@@ -102,4 +103,21 @@ class S3 implements FlysystemPluginInterface {
     return $this->client->getExternalUrl($this->bucket, $target);
   }
 
+  /**
+   * {@inheritdoc}
+   */
+  public function ensure($force = FALSE) {
+    // @TODO: If the bucket exists, can we write to it? Find a way to test that.
+    if (!$this->client->doesBucketExist($this->bucket)) {
+      return [[
+        'severity' => RfcLogLevel::ERROR,
+        'message' => 'Bucket %bucket does not exist.',
+        'context' => [
+          '%bucket' => $this->bucket,
+        ],
+      ]];
+    }
+
+    return [];
+  }
 }
