@@ -91,9 +91,9 @@ class S3 implements FlysystemPluginInterface {
     $this->options = !empty($configuration['options']) ? $configuration['options'] : [];
     $this->region = isset($configuration['region']) ? (string) $configuration['region'] : 'us-east-1';
     $this->protocol = isset($configuration['protocol']) ? (string) $configuration['protocol'] : 'http';
+    // @TODO: Support default cnames that will work for regions other than us-east-1
     $this->cname = isset($configuration['cname']) ? (string) $configuration['cname'] : $this->bucket . '.s3.amazonaws.com';
 
-    // @todo Put this in the container.
     $credentials = new Credentials($configuration['key'], $configuration['secret']);
     $this->client = new S3Client([
       'version' => 'latest',
@@ -121,7 +121,7 @@ class S3 implements FlysystemPluginInterface {
   public function getExternalUrl($uri) {
     $target = $this->getTarget($uri);
 
-    // Support image style generation.
+    // @TODO: Support image style generation.
     if (strpos($target, 'styles/') === 0 && !$this->getAdapter()->has($target)) {
       return $this->getDownloadlUrl($uri);
     }
