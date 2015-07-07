@@ -8,15 +8,16 @@
 namespace Drupal\flysystem_s3\Flysystem;
 
 use Aws\S3\S3Client;
+use Aws\Credentials\Credentials;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\flysystem\Plugin\FlysystemPluginInterface;
 use Drupal\flysystem\Plugin\FlysystemUrlTrait;
-use League\Flysystem\AwsS3v2\AwsS3Adapter;
+use League\Flysystem\AwsS3v3\AwsS3Adapter;
 
 /**
  * Drupal plugin for the "S3" Flysystem adapter.
  *
- * @Adapter(id = "s3v2")
+ * @Adapter(id = "s3")
  */
 class S3 implements FlysystemPluginInterface {
 
@@ -37,14 +38,35 @@ class S3 implements FlysystemPluginInterface {
   protected $bucket;
 
   /**
+   * The protocol used to generate the external URL.
+   *
+   * @var string
+   */
+  protected $protocol;
+
+  /**
+   * The hostname used to generate the external URL.
+   *
+   * @var string
+   */
+  protected $cname;
+
+  /**
+   * The S3 region
+   *
+   * @var string
+   */
+  protected $region;
+
+  /**
    * The S3 client.
    *
-   * @var \Aws\Common\Client\AwsClientInterface
+   * @var \Aws\AwsClientInterface
    */
   protected $client;
 
   /**
-   * Options to pass into \League\Flysystem\AwsS3v2\AwsS3Adapter.
+   * Options to pass into \League\Flysystem\AwsS3v3\AwsS3Adapter.
    *
    * @var array
    */
@@ -58,7 +80,7 @@ class S3 implements FlysystemPluginInterface {
   protected $prefix;
 
   /**
-   * Constructs a S3v2 object.
+   * Constructs a S3v3 object.
    *
    * @param array $configuration
    *   Plugin configuration array.
@@ -67,15 +89,17 @@ class S3 implements FlysystemPluginInterface {
     $this->bucket = $configuration['bucket'];
     $this->prefix = isset($configuration['prefix']) ? (string) $configuration['prefix'] : NULL;
     $this->options = !empty($configuration['options']) ? $configuration['options'] : [];
-
-    unset(
-      $configuration['bucket'],
-      $configuration['prefix'],
-      $configuration['options']
-    );
+    $this->region = isset($configuration['region']) ? (string) $configuration['region'] : 'us-east-1';
+    $this->protocol = isset($configuration['protocol']) ? (string) $configuration['protocol'] : 'http';
+    $this->cname = isset($configuration['cname']) ? (string) $configuration['cname'] : $this->bucket . '.s3.amazonaws.com';
 
     // @todo Put this in the container.
-    $this->client = S3Client::factory($configuration);
+    $credentials = new Credentials($configuration['key'], $configuration['secret']);
+    $this->client = new S3Client([
+      'version' => 'latest',
+      'region' => $this->region,
+      'credentials' => $credentials,
+    ]);
   }
 
   /**
@@ -83,7 +107,9 @@ class S3 implements FlysystemPluginInterface {
    */
   public function getAdapter() {
     if (!isset($this->adapter)) {
-      $this->adapter = new AwsS3Adapter($this->client, $this->bucket, $this->prefix, $this->options);
+      // @todo: The v3 S3 adapter doesn't take the $options param, which makes RRS impossible for now.
+      // @see https://github.com/thephpleague/flysystem-aws-s3-v3/issues/31
+      $this->adapter = new AwsS3Adapter($this->client, $this->bucket, $this->prefix);
     }
 
     return $this->adapter;
@@ -100,7 +126,7 @@ class S3 implements FlysystemPluginInterface {
       return $this->getDownloadlUrl($uri);
     }
 
-    return $this->client->getExternalUrl($this->bucket, $target);
+    return $this->protocol . '://' . $this->cname . '/' . $this->prefix . '/' . $target;
   }
 
   /**
