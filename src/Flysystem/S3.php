@@ -24,13 +24,6 @@ class S3 implements FlysystemPluginInterface {
     use FlysystemUrlTrait { getExternalUrl as getDownloadlUrl; }
 
   /**
-   * The S3 Flysystem adapter.
-   *
-   * @var \League\Flysystem\AdapterInterface
-   */
-  protected $adapter;
-
-  /**
    * The S3 bucket.
    *
    * @var string
@@ -106,13 +99,9 @@ class S3 implements FlysystemPluginInterface {
    * {@inheritdoc}
    */
   public function getAdapter() {
-    if (!isset($this->adapter)) {
-      // @todo: The v3 S3 adapter doesn't take the $options param, which makes RRS impossible for now.
-      // @see https://github.com/thephpleague/flysystem-aws-s3-v3/issues/31
-      $this->adapter = new AwsS3Adapter($this->client, $this->bucket, $this->prefix);
-    }
-
-    return $this->adapter;
+    // @todo: The v3 S3 adapter doesn't take the $options param, which makes RRS impossible for now.
+    // @see https://github.com/thephpleague/flysystem-aws-s3-v3/issues/31
+    return new AwsS3Adapter($this->client, $this->bucket, $this->prefix);
   }
 
   /**
@@ -122,7 +111,7 @@ class S3 implements FlysystemPluginInterface {
     $target = $this->getTarget($uri);
 
     // @TODO: Support image style generation.
-    if (strpos($target, 'styles/') === 0 && !$this->getAdapter()->has($target)) {
+    if (strpos($target, 'styles/') === 0 && !file_exists($uri)) {
       return $this->getDownloadlUrl($uri);
     }
 
@@ -146,4 +135,5 @@ class S3 implements FlysystemPluginInterface {
 
     return [];
   }
+
 }
