@@ -8,8 +8,8 @@ For setup instructions see the Flysystem README.txt.
 Example configuration:
 
 $schemes = [
-  's3example' => [
-    'type' => 's3',
+  's3' => [
+    'driver' => 's3',
     'config' => [
       'key'    => '[your key]',
       'secret' => '[your secret]',
