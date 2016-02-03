@@ -12,13 +12,17 @@ matrix:
 install:
   - composer self-update
   - cd ..
+
   - git clone --depth 1 --branch 8.0.x http://git.drupal.org/project/drupal.git
   - git clone --depth 1 --branch 8.x-1.x https://git.drupal.org/project/composer_manager.git
   - git clone --depth 1 --branch 8.x-1.x http://git.drupal.org:project/flysystem.git
+
   - mv composer_manager drupal/modules/composer_manager
   - mv flysystem drupal/modules/flysystem
   - mv drupal_flysystem_s3 drupal/modules/flysystem_s3
+
   - cd drupal
+
   - php modules/composer_manager/scripts/init.sh
   - composer update --lock --prefer-source
 
