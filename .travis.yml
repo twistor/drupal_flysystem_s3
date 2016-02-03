@@ -23,7 +23,7 @@ install:
 
   - cd drupal
 
-  - php modules/composer_manager/scripts/init.sh
+  - php modules/composer_manager/scripts/init.php
   - composer update --lock --prefer-source
 
 script:
