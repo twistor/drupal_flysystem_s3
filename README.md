@@ -24,7 +24,7 @@ $schemes = [
         'StorageClass' => 'REDUCED_REDUNDANCY',
       ],
 
-      'protocol' => 'https',
+      'protocol' => 'https',             // Will be autodetected based on the current request.
 
       'prefix' => 'an/optional/prefix',  // Directory prefix for all uploaded/viewed files.
 
