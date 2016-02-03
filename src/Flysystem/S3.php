@@ -7,12 +7,14 @@
 
 namespace Drupal\flysystem_s3\Flysystem;
 
-use Aws\S3\S3Client;
 use Aws\Credentials\Credentials;
+use Aws\S3\S3Client;
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\flysystem\Plugin\FlysystemPluginInterface;
 use Drupal\flysystem\Plugin\FlysystemUrlTrait;
-use League\Flysystem\AwsS3v3\AwsS3Adapter;
+use Drupal\flysystem\Plugin\ImageStyleGenerationTrait;
+use Drupal\flysystem_s3\Flysystem\Adapter\S3Adapter;
 
 /**
  * Drupal plugin for the "S3" Flysystem adapter.
@@ -21,7 +23,8 @@ use League\Flysystem\AwsS3v3\AwsS3Adapter;
  */
 class S3 implements FlysystemPluginInterface {
 
-    use FlysystemUrlTrait { getExternalUrl as getDownloadlUrl; }
+  use ImageStyleGenerationTrait;
+  use FlysystemUrlTrait { getExternalUrl as getDownloadlUrl; }
 
   /**
    * The S3 bucket.
@@ -29,27 +32,6 @@ class S3 implements FlysystemPluginInterface {
    * @var string
    */
   protected $bucket;
-
-  /**
-   * The protocol used to generate the external URL.
-   *
-   * @var string
-   */
-  protected $protocol;
-
-  /**
-   * The hostname used to generate the external URL.
-   *
-   * @var string
-   */
-  protected $cname;
-
-  /**
-   * The S3 region
-   *
-   * @var string
-   */
-  protected $region;
 
   /**
    * The S3 client.
@@ -73,6 +55,13 @@ class S3 implements FlysystemPluginInterface {
   protected $prefix;
 
   /**
+   * The URL prefix.
+   *
+   * @var string
+   */
+  protected $urlPrefix;
+
+  /**
    * Constructs a S3v3 object.
    *
    * @param array $configuration
@@ -80,17 +69,24 @@ class S3 implements FlysystemPluginInterface {
    */
   public function __construct(array $configuration) {
     $this->bucket = $configuration['bucket'];
-    $this->prefix = isset($configuration['prefix']) ? (string) $configuration['prefix'] : NULL;
+    $this->prefix = isset($configuration['prefix']) ? $configuration['prefix'] : '';
     $this->options = !empty($configuration['options']) ? $configuration['options'] : [];
-    $this->region = isset($configuration['region']) ? (string) $configuration['region'] : 'us-east-1';
-    $this->protocol = isset($configuration['protocol']) ? (string) $configuration['protocol'] : 'http';
-    // @TODO: Support default cnames that will work for regions other than us-east-1
-    $this->cname = isset($configuration['cname']) ? (string) $configuration['cname'] : $this->bucket . '.s3.amazonaws.com';
+
+    $region = isset($configuration['region']) ? $configuration['region'] : 'us-east-1';
+    $protocol = isset($configuration['protocol']) ? $configuration['protocol'] : 'http';
+    $cname = isset($configuration['cname']) ? $configuration['cname'] : 's3-' . $region . '.amazonaws.com';
+
+    $this->urlPrefix = $protocol . '://' . $cname . '/' . $this->bucket;
+
+    if (strlen($this->prefix)) {
+      $this->urlPrefix .= '/' . UrlHelper::encodePath($this->prefix);
+    }
 
     $credentials = new Credentials($configuration['key'], $configuration['secret']);
+
     $this->client = new S3Client([
       'version' => 'latest',
-      'region' => $this->region,
+      'region' => $region,
       'credentials' => $credentials,
     ]);
   }
@@ -99,9 +95,7 @@ class S3 implements FlysystemPluginInterface {
    * {@inheritdoc}
    */
   public function getAdapter() {
-    // @todo: The v3 S3 adapter doesn't take the $options param, which makes RRS impossible for now.
-    // @see https://github.com/thephpleague/flysystem-aws-s3-v3/issues/31
-    return new AwsS3Adapter($this->client, $this->bucket, $this->prefix);
+    return new S3Adapter($this->client, $this->bucket, $this->prefix, $this->options);
   }
 
   /**
@@ -110,12 +104,11 @@ class S3 implements FlysystemPluginInterface {
   public function getExternalUrl($uri) {
     $target = $this->getTarget($uri);
 
-    // @TODO: Support image style generation.
     if (strpos($target, 'styles/') === 0 && !file_exists($uri)) {
-      return $this->getDownloadlUrl($uri);
+      $this->generateImageStyle($target);
     }
 
-    return $this->protocol . '://' . $this->cname . '/' . $this->prefix . '/' . $target;
+    return $this->urlPrefix . '/' . UrlHelper::encodePath($target);
   }
 
   /**
