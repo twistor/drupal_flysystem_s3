@@ -7,21 +7,24 @@
 
 namespace Drupal\flysystem_s3\Flysystem;
 
+use Aws\AwsClientInterface;
 use Aws\Credentials\Credentials;
 use Aws\S3\S3Client;
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Logger\RfcLogLevel;
+use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\flysystem\Plugin\FlysystemPluginInterface;
 use Drupal\flysystem\Plugin\FlysystemUrlTrait;
 use Drupal\flysystem\Plugin\ImageStyleGenerationTrait;
 use Drupal\flysystem_s3\Flysystem\Adapter\S3Adapter;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Drupal plugin for the "S3" Flysystem adapter.
  *
  * @Adapter(id = "s3")
  */
-class S3 implements FlysystemPluginInterface {
+class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
 
   use ImageStyleGenerationTrait;
   use FlysystemUrlTrait { getExternalUrl as getDownloadlUrl; }
@@ -66,29 +69,46 @@ class S3 implements FlysystemPluginInterface {
    *
    * @param array $configuration
    *   Plugin configuration array.
+   * @param string $scheme
+   *   The current scheme, either 'http' or 'https'.
    */
-  public function __construct(array $configuration) {
+  public function __construct(AwsClientInterface $client, array $configuration) {
+    $this->client = $client;
     $this->bucket = $configuration['bucket'];
-    $this->prefix = isset($configuration['prefix']) ? $configuration['prefix'] : '';
-    $this->options = !empty($configuration['options']) ? $configuration['options'] : [];
+    $this->prefix = $configuration['prefix'];
+    $this->options = $configuration['options'];
 
-    $region = isset($configuration['region']) ? $configuration['region'] : 'us-east-1';
-    $protocol = isset($configuration['protocol']) ? $configuration['protocol'] : 'http';
-    $cname = isset($configuration['cname']) ? $configuration['cname'] : 's3-' . $region . '.amazonaws.com';
-
-    $this->urlPrefix = $protocol . '://' . $cname . '/' . $this->bucket;
+    $this->urlPrefix = $configuration['protocol'] . '://' . $configuration['cname'] . '/' . $this->bucket;
 
     if (strlen($this->prefix)) {
       $this->urlPrefix .= '/' . UrlHelper::encodePath($this->prefix);
     }
+  }
 
-    $credentials = new Credentials($configuration['key'], $configuration['secret']);
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    $protocol = $container->get('request_stack')->getCurrentRequest()->getScheme();
 
-    $this->client = new S3Client([
+    $configuration += [
+      'prefix' => '',
+      'protocol' => $protocol,
+      'options' => [],
+      'region' => 'us-east-1',
+    ];
+
+    $configuration += ['cname' => 's3-' . $configuration['region'] . '.amazonaws.com'];
+
+    $client = new S3Client([
       'version' => 'latest',
-      'region' => $region,
-      'credentials' => $credentials,
+      'region' => $configuration['region'],
+      'credentials' => new Credentials($configuration['key'], $configuration['secret']),
     ]);
+
+    unset($configuration['key'], $configuration['secret']);
+
+    return new static($client, $configuration);
   }
 
   /**
