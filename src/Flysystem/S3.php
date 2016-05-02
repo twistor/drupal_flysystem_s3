@@ -78,6 +78,11 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
     $this->prefix = $configuration['prefix'];
     $this->options = $configuration['options'];
 
+    // us-east-1 doesn't follow the consistent mapping.
+    if ($configuration['cname'] === 's3-us-east-1.amazonaws.com') {
+      $configuration['cname'] = 's3.amazonaws.com';
+    }
+
     $this->urlPrefix = $configuration['protocol'] . '://' . $configuration['cname'] . '/' . $this->bucket;
 
     if (strlen($this->prefix)) {
