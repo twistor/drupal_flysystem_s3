@@ -1,6 +1,7 @@
 {
   "name": "drupal/flysystem_s3",
   "require": {
-    "league/flysystem-aws-s3-v3": "~1.20"
+    "league/flysystem": "^1.0.20",
+    "league/flysystem-aws-s3-v3": "^1.0"
   }
 }
