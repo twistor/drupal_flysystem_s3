@@ -72,6 +72,25 @@ class S3Test extends \PHPUnit_Framework_TestCase {
     $this->assertSame('https://s3-eu-west-1.amazonaws.com/example-bucket/foo%201.html', $plugin->getExternalUrl('s3://foo 1.html'));
   }
 
+  public function testCreateUsingNonAwsConfiguration() {
+    $container = new ContainerBuilder();
+    $container->set('request_stack', new RequestStack());
+    $container->get('request_stack')->push(Request::create('https://example.com/'));
+
+    $configuration = [
+      'key'      => 'fee',
+      'secret'   => 'fo',
+      'region'   => 'eu-west-1',
+      'bucket'   => 'example-bucket',
+      'cname'    => 'something.somewhere.tld',
+      'endpoint' => 'https://api.somewhere.tld'
+    ];
+
+    $plugin = S3::create($container, $configuration, '', '');
+    $this->assertSame('https://something.somewhere.tld/foo%201.html', $plugin->getExternalUrl('s3://foo 1.html'));
+    $this->assertSame($plugin->getAdapter()->getClient()->getEndpoint(). '', 'https://api.somewhere.tld');
+  }
+
   public function testEnsure() {
     $configuration = [
       'region' => 'eu-west-1',

@@ -18,6 +18,7 @@ while ($dir = dirname($dir)) {
 
   $previous_dir = $dir;
 
+error_log("CHECK ". $dir . '/core/tests/bootstrap.php');
   if (is_file($dir . '/core/tests/bootstrap.php')) {
     require_once $dir . '/core/tests/bootstrap.php';
     return;
