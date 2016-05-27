@@ -78,7 +78,7 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
     $this->prefix = $configuration['prefix'];
     $this->options = $configuration['options'];
 
-    if ($this->isCnameVirtualHosted($configuration['cname'], $this->bucket)) {
+    if ($this->isCnameVirtualHosted($configuration['cname'], $this->bucket) || $this->isNotAws($configuration)) {
       $this->urlPrefix = $configuration['protocol'] . '://' . $configuration['cname'];
     }
     else {
@@ -114,6 +114,7 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
       'version' => 'latest',
       'region' => $configuration['region'],
       'credentials' => new Credentials($configuration['key'], $configuration['secret']),
+      'endpoint' => isset($configuration['endpoint']) ? $configuration['endpoint'] : null
     ]);
 
     unset($configuration['key'], $configuration['secret']);
@@ -174,6 +175,19 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
    */
   private function isCnameVirtualHosted($cname, $bucket) {
     return strpos($cname, $bucket) === 0;
+  }
+
+  /**
+   * Detects if the provided configuration indicates that AWS is not used
+   *
+   * @param array $configuration
+   *   The configuration
+   *
+   * @return bool
+   *   TRUE if the CNAME does not contain amazonaws.com
+   */
+  private function isNotAws(array $configuration) {
+    return isset($configuration['endpoint']) && strpos($configuration['endpoint'], 'amazonaws.com') === false;
   }
 
 }
