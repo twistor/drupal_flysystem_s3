@@ -17,6 +17,7 @@ use Drupal\flysystem\Plugin\FlysystemPluginInterface;
 use Drupal\flysystem\Plugin\FlysystemUrlTrait;
 use Drupal\flysystem\Plugin\ImageStyleGenerationTrait;
 use Drupal\flysystem_s3\Flysystem\Adapter\S3Adapter;
+use League\Flysystem\Config;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -67,32 +68,22 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
   /**
    * Constructs a S3v3 object.
    *
-   * @param array $configuration
-   *   Plugin configuration array.
-   * @param string $scheme
-   *   The current scheme, either 'http' or 'https'.
+   * @param \Aws\AwsClientInterface $client
+   *   The AWS client.
+   * @param \League\Flysystem\Config $config
+   *   The configuration.
    */
-  public function __construct(AwsClientInterface $client, array $configuration) {
+  public function __construct(AwsClientInterface $client, Config $config) {
     $this->client = $client;
-    $this->bucket = $configuration['bucket'];
-    $this->prefix = $configuration['prefix'];
-    $this->options = $configuration['options'];
+    $this->bucket = $config->get('bucket', '');
+    $this->prefix = $config->get('prefix', '');
+    $this->options = $config->get('options', []);
 
-    if ($this->isCnameVirtualHosted($configuration['cname'], $this->bucket)) {
-      $this->urlPrefix = $configuration['protocol'] . '://' . $configuration['cname'];
-    }
-    else {
-      // us-east-1 doesn't follow the consistent mapping.
-      if ($configuration['cname'] === 's3-us-east-1.amazonaws.com') {
-        $configuration['cname'] = 's3.amazonaws.com';
-      }
+    $default_cname = 's3-' . $config->get('region', 'us-east-1') . '.amazonaws.com';
+    $cname = $config->get('cname', $default_cname);
+    $protocol = $config->get('protocol', 'http');
 
-      $this->urlPrefix = $configuration['protocol'] . '://' . $configuration['cname'] . '/' . $this->bucket;
-    }
-
-    if (strlen($this->prefix)) {
-      $this->urlPrefix .= '/' . UrlHelper::encodePath($this->prefix);
-    }
+    $this->urlPrefix = $this->calculateUrlPrefix($protocol, $cname, $this->bucket, $this->prefix);
   }
 
   /**
@@ -100,15 +91,7 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
     $protocol = $container->get('request_stack')->getCurrentRequest()->getScheme();
-
-    $configuration += [
-      'prefix' => '',
-      'protocol' => $protocol,
-      'options' => [],
-      'region' => 'us-east-1',
-    ];
-
-    $configuration += ['cname' => 's3-' . $configuration['region'] . '.amazonaws.com'];
+    $configuration += ['protocol' => $protocol, 'region' => 'us-east-1'];
 
     $client = new S3Client([
       'version' => 'latest',
@@ -118,7 +101,7 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
 
     unset($configuration['key'], $configuration['secret']);
 
-    return new static($client, $configuration);
+    return new static($client, new Config($configuration));
   }
 
   /**
@@ -157,6 +140,36 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
     }
 
     return [];
+  }
+
+  /**
+   * Calculates the URL prefix.
+   *
+   * @param string $protocol
+   *   The protocol. Either http, or https.
+   * @param string $cname
+   *   The domain name of the URL prefix.
+   * @param string $bucket
+   *   The bucket of the endpoint.
+   * @param string $prefix
+   *   The path prefix.
+   *
+   * @return string
+   *   The URL prefix in the form protocol://cname[/bucket][/prefix].
+   */
+  private function calculateUrlPrefix($protocol, $cname, $bucket, $prefix) {
+    $prefix = strlen($prefix) ? '/' . UrlHelper::encodePath($prefix) : '';
+
+    if ($this->isCnameVirtualHosted($cname, $bucket)) {
+      return $protocol . '://' . $cname . $prefix;
+    }
+
+    // us-east-1 doesn't follow the consistent mapping.
+    if ($cname === 's3-us-east-1.amazonaws.com') {
+      $cname = 's3.amazonaws.com';
+    }
+
+    return $protocol . '://' . $cname . '/' . $bucket . $prefix;
   }
 
   /**
