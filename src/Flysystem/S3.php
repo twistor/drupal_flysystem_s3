@@ -16,6 +16,7 @@ use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\flysystem\Plugin\FlysystemPluginInterface;
 use Drupal\flysystem\Plugin\FlysystemUrlTrait;
 use Drupal\flysystem\Plugin\ImageStyleGenerationTrait;
+use Drupal\flysystem_s3\AwsCacheAdapter;
 use Drupal\flysystem_s3\Flysystem\Adapter\S3Adapter;
 use League\Flysystem\Config;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -93,11 +94,20 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
     $protocol = $container->get('request_stack')->getCurrentRequest()->getScheme();
     $configuration += ['protocol' => $protocol, 'region' => 'us-east-1'];
 
-    $client = new S3Client([
-      'version' => 'latest',
-      'region' => $configuration['region'],
-      'credentials' => new Credentials($configuration['key'], $configuration['secret']),
-    ]);
+    $client_config = ['version' => 'latest', 'region' => $configuration['region']];
+
+    // Allow authentication with standard secret/key or IAM roles.
+    if (isset($configuration['key']) && isset($configuration['secret'])) {
+      $client_config['credentials'] = new Credentials($configuration['key'], $configuration['secret']);
+    }
+    else {
+      $client_config['credentials.cache'] = new AwsCacheAdapter(
+        $container->get('cache.default'),
+        'flysystem_s3:'
+      );
+    }
+
+    $client = new S3Client($client_config);
 
     unset($configuration['key'], $configuration['secret']);
 

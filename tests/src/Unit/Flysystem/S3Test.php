@@ -11,8 +11,10 @@ use Aws\AwsClientInterface;
 use Aws\Credentials\Credentials;
 use Aws\S3\S3Client;
 use Aws\S3\S3ClientInterface;
+use Drupal\Core\Cache\MemoryBackend;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\Logger\RfcLogLevel;
+use Drupal\Tests\UnitTestCase;
 use Drupal\flysystem_s3\Flysystem\S3;
 use League\Flysystem\Config;
 use Prophecy\Argument;
@@ -21,13 +23,11 @@ use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * @coversDefaultClass \Drupal\flysystem_s3\Flysystem\S3
+ * @covers \Drupal\flysystem_s3\Flysystem\S3
  * @group flysystem_s3
  */
-class S3Test extends \PHPUnit_Framework_TestCase {
+class S3Test extends UnitTestCase {
 
-  /**
-   * @covers \Drupal\flysystem_s3\Flysystem\S3
-   */
   public function test() {
     $configuration = [
       'bucket' => 'example-bucket',
@@ -82,6 +82,17 @@ class S3Test extends \PHPUnit_Framework_TestCase {
     $result = $plugin->ensure();
     $this->assertSame(1, count($result));
     $this->assertSame(RfcLogLevel::ERROR, $result[0]['severity']);
+  }
+
+  public function testIamAuth() {
+    $container = new ContainerBuilder();
+    $container->set('request_stack', new RequestStack());
+    $container->get('request_stack')->push(Request::create('https://example.com/'));
+    $container->set('cache.default', new MemoryBackend('bin'));
+
+    $configuration = ['bucket' => 'example-bucket'];
+
+    $plugin = S3::create($container, $configuration, '', '');
   }
 
 }
