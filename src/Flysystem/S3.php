@@ -80,11 +80,7 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
     $this->prefix = $config->get('prefix', '');
     $this->options = $config->get('options', []);
 
-    $default_cname = 's3-' . $config->get('region', 'us-east-1') . '.amazonaws.com';
-    $cname = $config->get('cname', $default_cname);
-    $protocol = $config->get('protocol', 'http');
-
-    $this->urlPrefix = $this->calculateUrlPrefix($protocol, $cname, $this->bucket, $this->prefix);
+    $this->urlPrefix = $this->calculateUrlPrefix($config);
   }
 
   /**
@@ -92,9 +88,17 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
     $protocol = $container->get('request_stack')->getCurrentRequest()->getScheme();
-    $configuration += ['protocol' => $protocol, 'region' => 'us-east-1'];
+    $configuration += [
+      'protocol' => $protocol,
+      'region' => 'us-east-1',
+      'endpoint' => NULL,
+    ];
 
-    $client_config = ['version' => 'latest', 'region' => $configuration['region']];
+    $client_config = [
+      'version' => 'latest',
+      'region' => $configuration['region'],
+      'endpoint' => $configuration['endpoint'],
+    ];
 
     // Allow authentication with standard secret/key or IAM roles.
     if (isset($configuration['key']) && isset($configuration['secret'])) {
@@ -155,22 +159,26 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
   /**
    * Calculates the URL prefix.
    *
-   * @param string $protocol
-   *   The protocol. Either http, or https.
-   * @param string $cname
-   *   The domain name of the URL prefix.
-   * @param string $bucket
-   *   The bucket of the endpoint.
-   * @param string $prefix
-   *   The path prefix.
+   * @param \League\Flysystem\Config $config
+   *   The configuration.
    *
    * @return string
    *   The URL prefix in the form protocol://cname[/bucket][/prefix].
    */
-  private function calculateUrlPrefix($protocol, $cname, $bucket, $prefix) {
-    $prefix = strlen($prefix) ? '/' . UrlHelper::encodePath($prefix) : '';
+  private function calculateUrlPrefix(Config $config) {
+    $protocol = $config->get('protocol', 'http');
 
-    if ($this->isCnameVirtualHosted($cname, $bucket)) {
+    $endpoint = (string) $config->get('endpoint', '');
+
+    $default_cname = 's3-' . $config->get('region', 'us-east-1') . '.amazonaws.com';
+    $cname = $config->get('cname', $default_cname);
+
+    $bucket = (string) $config->get('bucket', '');
+
+    $prefix = (string) $config->get('prefix', '');
+    $prefix = $prefix === '' ? '' : '/' . UrlHelper::encodePath($prefix);
+
+    if ($this->isCnameVirtualHosted($cname, $bucket) || !$this->isAwsEndpoint($endpoint)) {
       return $protocol . '://' . $cname . $prefix;
     }
 
@@ -183,6 +191,19 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
   }
 
   /**
+   * Detects if the provided endpoint indicates that AWS is used.
+   *
+   * @param string $endpoint
+   *   The AWS endpoint.
+   *
+   * @return bool
+   *   True if the endpoint contains amazonaws.com, false if not.
+   */
+  private function isAwsEndpoint($endpoint) {
+    return $endpoint === '' || strpos($endpoint, 'amazonaws.com') !== FALSE;
+  }
+
+  /**
    * Detects whether the CNAME uses Virtual Hosted–Style Method.
    *
    * @param string $cname
@@ -191,12 +212,12 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
    *   The bucket identifer.
    *
    * @return bool
-   *   TRUE if the CNAME uses Virtual Hosted–Style Method. FALSE otherwise.
+   *   True if the CNAME uses Virtual Hosted–Style Method, false if not.
    *
    * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html
    */
   private function isCnameVirtualHosted($cname, $bucket) {
-    return strpos($cname, $bucket) === 0;
+    return $bucket === '' || strpos($cname, $bucket) === 0;
   }
 
 }
