@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\flysystem_s3\Tests\ModuleInstallUninstallWebTest.
- */
-
 namespace Drupal\flysystem_s3\Tests;
 
 use Drupal\flysystem\Tests\ModuleInstallUninstallWebTest as Base;

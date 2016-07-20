@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\flysystem_s3\Flysystem\S3.
- */
-
 namespace Drupal\flysystem_s3\Flysystem;
 
 use Aws\AwsClientInterface;

@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \NoDrupal\Tests\flysystem_s3\Unit\Flysystem\S3Test.
- */
-
 namespace NoDrupal\Tests\flysystem_s3\Unit\Flysystem;
 
 use Aws\AwsClientInterface;

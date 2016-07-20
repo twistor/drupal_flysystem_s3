@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\flysystem_s3\Flysystem\Adapter\S3Adapter.
- */
-
 namespace Drupal\flysystem_s3\Flysystem\Adapter;
 
 use League\Flysystem\AdapterInterface;
