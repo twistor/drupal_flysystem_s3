@@ -11,6 +11,7 @@ use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\Tests\UnitTestCase;
 use Drupal\flysystem_s3\Flysystem\S3;
+use League\Flysystem\AdapterInterface;
 use League\Flysystem\Config;
 use Prophecy\Argument;
 use Symfony\Component\HttpFoundation\Request;
@@ -38,7 +39,7 @@ class S3Test extends UnitTestCase {
 
     $plugin = new S3($client, new Config($configuration));
 
-    $this->assertInstanceOf('League\Flysystem\AdapterInterface', $plugin->getAdapter());
+    $this->assertInstanceOf(AdapterInterface::class, $plugin->getAdapter());
 
     $this->assertSame('http://example.com/example-bucket/test%20prefix/foo%201.html', $plugin->getExternalUrl('s3://foo 1.html'));
 
@@ -98,6 +99,16 @@ class S3Test extends UnitTestCase {
     $plugin = S3::create($container, $configuration, '', '');
     $this->assertSame('http://storage.example.com/my-bucket/foo%201.html', $plugin->getExternalUrl('s3://foo 1.html'));
     $this->assertSame('https://api.somewhere.tld', (string) $plugin->getAdapter()->getClient()->getEndpoint());
+  }
+
+  public function testEmptyCnameDoesNotBreakConfiguration() {
+    $configuration = [
+      'cname'    => NULL,
+      'bucket'   => 'my-bucket',
+    ];
+
+    $plugin = new S3($this->getMock(S3ClientInterface::class), new Config($configuration));
+    $this->assertSame('http://s3.amazonaws.com/my-bucket/foo.html', $plugin->getExternalUrl('s3://foo.html'));
   }
 
   public function testEnsure() {

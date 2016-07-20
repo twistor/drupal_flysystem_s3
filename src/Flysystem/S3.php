@@ -164,7 +164,8 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
     $protocol = $config->get('protocol', 'http');
 
     $default_cname = 's3-' . $config->get('region', 'us-east-1') . '.amazonaws.com';
-    $cname = $config->get('cname', $default_cname);
+    $cname = (string) $config->get('cname');
+    $cname = $cname === '' ? $default_cname : $cname;
 
     $bucket = (string) $config->get('bucket', '');
 
