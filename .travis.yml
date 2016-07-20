@@ -12,7 +12,7 @@ install:
   - composer self-update
   - cd ..
 
-  - git clone --depth 1 --branch 8.0.x https://git.drupal.org/project/drupal.git
+  - git clone --depth 1 --branch 8.1.x https://git.drupal.org/project/drupal.git
   - git clone --depth 1 --branch 8.x-1.x https://git.drupal.org/project/composer_manager.git
   - git clone --depth 1 --branch 8.x-1.x https://git.drupal.org/project/flysystem.git
 
@@ -22,9 +22,10 @@ install:
 
   - cd drupal
 
+  - composer install
   - php modules/composer_manager/scripts/init.php
   - composer drupal-rebuild
-  - composer update --lock --prefer-source
+  - composer update --lock --prefer-dist
 
 script:
   - cd modules/flysystem_s3
