@@ -87,6 +87,24 @@ class S3Test extends UnitTestCase {
     $this->assertSame('https://api.somewhere.tld', (string) $plugin->getAdapter()->getClient()->getEndpoint());
   }
 
+  public function testCreateUsingNonAwsConfigurationWithBucket() {
+    $container = new ContainerBuilder();
+    $container->set('request_stack', new RequestStack());
+    $container->get('request_stack')->push(Request::create('http://example.com/'));
+
+    $configuration = [
+      'key'      => 'foo',
+      'secret'   => 'bar',
+      'cname'    => 'storage.example.com',
+      'bucket'   => 'my-bucket',
+      'endpoint' => 'https://api.somewhere.tld',
+    ];
+
+    $plugin = S3::create($container, $configuration, '', '');
+    $this->assertSame('http://storage.example.com/my-bucket/foo%201.html', $plugin->getExternalUrl('s3://foo 1.html'));
+    $this->assertSame('https://api.somewhere.tld', (string) $plugin->getAdapter()->getClient()->getEndpoint());
+  }
+
   public function testEnsure() {
     $client = $this->prophesize(S3ClientInterface::class);
     $client->doesBucketExist(Argument::type('string'))->willReturn(TRUE);

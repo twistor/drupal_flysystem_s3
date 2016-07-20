@@ -168,8 +168,6 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
   private function calculateUrlPrefix(Config $config) {
     $protocol = $config->get('protocol', 'http');
 
-    $endpoint = (string) $config->get('endpoint', '');
-
     $default_cname = 's3-' . $config->get('region', 'us-east-1') . '.amazonaws.com';
     $cname = $config->get('cname', $default_cname);
 
@@ -178,29 +176,18 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
     $prefix = (string) $config->get('prefix', '');
     $prefix = $prefix === '' ? '' : '/' . UrlHelper::encodePath($prefix);
 
-    if ($this->isCnameVirtualHosted($cname, $bucket) || !$this->isAwsEndpoint($endpoint)) {
+    if ($this->isCnameVirtualHosted($cname, $bucket)) {
       return $protocol . '://' . $cname . $prefix;
     }
+
+    $bucket = $bucket === '' ? '' : '/' . UrlHelper::encodePath($bucket);
 
     // us-east-1 doesn't follow the consistent mapping.
     if ($cname === 's3-us-east-1.amazonaws.com') {
       $cname = 's3.amazonaws.com';
     }
 
-    return $protocol . '://' . $cname . '/' . $bucket . $prefix;
-  }
-
-  /**
-   * Detects if the provided endpoint indicates that AWS is used.
-   *
-   * @param string $endpoint
-   *   The AWS endpoint.
-   *
-   * @return bool
-   *   True if the endpoint contains amazonaws.com, false if not.
-   */
-  private function isAwsEndpoint($endpoint) {
-    return $endpoint === '' || strpos($endpoint, 'amazonaws.com') !== FALSE;
+    return $protocol . '://' . $cname . $bucket . $prefix;
   }
 
   /**
