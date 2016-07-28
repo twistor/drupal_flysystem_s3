@@ -51,6 +51,12 @@ $schemes = [
                                                   // your bucket. Used for URL
                                                   // generation.
 
+      // 'cname_is_bucket' => TRUE,               // Set to FALSE if the CNAME
+                                                  // does not resolve to a
+                                                  // bucket and the bucuket
+                                                  // should be included in the
+                                                  // path.
+
       // 'endpoint' => 'https://api.example.com', // An alternative API endpoint
                                                   // for 3rd party S3 providers.
     ],

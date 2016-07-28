@@ -198,20 +198,22 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
   private function calculateUrlPrefix(Config $config) {
     $protocol = $config->get('protocol', 'http');
 
-    $default_cname = 's3-' . $config->get('region', 'us-east-1') . '.amazonaws.com';
     $cname = (string) $config->get('cname');
-    $cname = $cname === '' ? $default_cname : $cname;
-
-    $bucket = (string) $config->get('bucket', '');
 
     $prefix = (string) $config->get('prefix', '');
     $prefix = $prefix === '' ? '' : '/' . UrlHelper::encodePath($prefix);
 
-    if ($this->isCnameVirtualHosted($cname, $bucket)) {
-      return $protocol . '://' . $cname . $prefix;
-    }
+    if ($cname !== '' && $config->get('cname_is_bucket', TRUE)) {
+       return $protocol . '://' . $cname . $prefix;
+     }
 
+    $bucket = (string) $config->get('bucket', '');
     $bucket = $bucket === '' ? '' : '/' . UrlHelper::encodePath($bucket);
+
+    // No custom CNAME was provided. Generate the default S3 one.
+    if ($cname === '') {
+      $cname = 's3-' . $config->get('region', 'us-east-1') . '.amazonaws.com';
+    }
 
     // us-east-1 doesn't follow the consistent mapping.
     if ($cname === 's3-us-east-1.amazonaws.com') {
@@ -219,23 +221,6 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
     }
 
     return $protocol . '://' . $cname . $bucket . $prefix;
-  }
-
-  /**
-   * Detects whether the CNAME uses Virtual Hosted–Style Method.
-   *
-   * @param string $cname
-   *   The CNAME.
-   * @param string $bucket
-   *   The bucket identifer.
-   *
-   * @return bool
-   *   True if the CNAME uses Virtual Hosted–Style Method, false if not.
-   *
-   * @see http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html
-   */
-  private function isCnameVirtualHosted($cname, $bucket) {
-    return $bucket === '' || strpos($cname, $bucket) === 0;
   }
 
 }

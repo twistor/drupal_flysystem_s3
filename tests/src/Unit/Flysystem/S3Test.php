@@ -40,12 +40,12 @@ class S3Test extends UnitTestCase {
 
     $this->assertInstanceOf(AdapterInterface::class, $plugin->getAdapter());
 
-    $this->assertSame('http://example.com/example-bucket/test%20prefix/foo%201.html', $plugin->getExternalUrl('s3://foo 1.html'));
+    $this->assertSame('http://example.com/test%20prefix/foo%201.html', $plugin->getExternalUrl('s3://foo 1.html'));
 
     $configuration['prefix'] = '';
 
     $plugin = new S3($client, new Config($configuration));
-    $this->assertSame('http://example.com/example-bucket/foo%201.html', $plugin->getExternalUrl('s3://foo 1.html'));
+    $this->assertSame('http://example.com/foo%201.html', $plugin->getExternalUrl('s3://foo 1.html'));
   }
 
   /**
@@ -112,11 +112,12 @@ class S3Test extends UnitTestCase {
     $container->get('request_stack')->push(Request::create('http://example.com/'));
 
     $configuration = [
-      'key'      => 'foo',
-      'secret'   => 'bar',
-      'cname'    => 'storage.example.com',
-      'bucket'   => 'my-bucket',
-      'endpoint' => 'https://api.somewhere.tld',
+      'key'             => 'foo',
+      'secret'          => 'bar',
+      'cname'           => 'storage.example.com',
+      'cname_is_bucket' => FALSE,
+      'bucket'          => 'my-bucket',
+      'endpoint'        => 'https://api.somewhere.tld',
     ];
 
     $plugin = S3::create($container, $configuration, '', '');
