@@ -62,7 +62,7 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
   protected $urlPrefix;
 
   /**
-   * Constructs a S3v3 object.
+   * Constructs an S3 object.
    *
    * @param \Aws\AwsClientInterface $client
    *   The AWS client.
@@ -82,13 +82,28 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
-    $protocol = $container->get('request_stack')->getCurrentRequest()->getScheme();
-    $configuration += [
-      'protocol' => $protocol,
-      'region' => 'us-east-1',
-      'endpoint' => NULL,
-    ];
+    $configuration = static::mergeConfiguration($container, $configuration);
+    $client_config = static::mergeClientConfiguration($container, $configuration);
 
+    $client = S3Client::factory($client_config);
+
+    unset($configuration['key'], $configuration['secret']);
+
+    return new static($client, new Config($configuration));
+  }
+
+  /**
+   * Returns an S3 client configuration based on a Flysystem configuration.
+   *
+   * @param \Symfony\Component\DependencyInjection\ContainerInterface $container
+   *   The container to pull out services used in the plugin.
+   * @param array $configuration
+   *   A configuration array containing information about the plugin instance.
+   *
+   * @return array
+   *   The client configuration.
+   */
+  public static function mergeClientConfiguration(ContainerInterface $container, array $configuration) {
     $client_config = [
       'version' => 'latest',
       'region' => $configuration['region'],
@@ -98,19 +113,39 @@ class S3 implements FlysystemPluginInterface, ContainerFactoryPluginInterface {
     // Allow authentication with standard secret/key or IAM roles.
     if (isset($configuration['key']) && isset($configuration['secret'])) {
       $client_config['credentials'] = new Credentials($configuration['key'], $configuration['secret']);
-    }
-    else {
-      $client_config['credentials.cache'] = new AwsCacheAdapter(
-        $container->get('cache.default'),
-        'flysystem_s3:'
-      );
+
+      return $client_config;
     }
 
-    $client = new S3Client($client_config);
+    $client_config['credentials.cache'] = new AwsCacheAdapter(
+      $container->get('cache.default'),
+      'flysystem_s3:'
+    );
 
-    unset($configuration['key'], $configuration['secret']);
+    return $client_config;
+  }
 
-    return new static($client, new Config($configuration));
+  /**
+   * Merges default Flysystem configuration.
+   *
+   * @param \Symfony\Component\DependencyInjection\ContainerInterface $container
+   *   The container to pull out services used in the plugin.
+   * @param array $configuration
+   *   A configuration array containing information about the plugin instance.
+   *
+   * @return array
+   *   The Flysystem configuration.
+   */
+  public static function mergeConfiguration(ContainerInterface $container, array $configuration) {
+    $protocol = $container->get('request_stack')
+      ->getCurrentRequest()
+      ->getScheme();
+
+    return $configuration += [
+      'protocol' => $protocol,
+      'region' => 'us-east-1',
+      'endpoint' => NULL,
+    ];
   }
 
   /**

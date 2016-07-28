@@ -2,7 +2,6 @@
 
 namespace NoDrupal\Tests\flysystem_s3\Unit\Flysystem;
 
-use Aws\AwsClientInterface;
 use Aws\Credentials\Credentials;
 use Aws\S3\S3Client;
 use Aws\S3\S3ClientInterface;
@@ -49,6 +48,30 @@ class S3Test extends UnitTestCase {
     $this->assertSame('http://example.com/example-bucket/foo%201.html', $plugin->getExternalUrl('s3://foo 1.html'));
   }
 
+  /**
+   * Tests merging defaults into configuration arrays.
+   */
+  public function testMergeConfiguration() {
+    $container = new ContainerBuilder();
+    $container->set('request_stack', new RequestStack());
+    $container->get('request_stack')->push(Request::create('https://example.com/'));
+
+    $configuration = [
+      'key'    => 'fee',
+      'secret' => 'fo',
+      'region' => 'eu-west-1',
+      'bucket' => 'example-bucket',
+    ];
+
+    $configuration = S3::mergeConfiguration($container, $configuration);
+    $this->assertSame('https', $configuration['protocol']);
+
+    $client_config = S3::mergeClientConfiguration($container, $configuration);
+    $this->assertSame('eu-west-1', $client_config['region']);
+    $this->assertNull($client_config['endpoint']);
+    $this->assertInstanceOf(Credentials::class, $client_config['credentials']);
+  }
+
   public function testCreate() {
     $container = new ContainerBuilder();
     $container->set('request_stack', new RequestStack());
@@ -62,7 +85,7 @@ class S3Test extends UnitTestCase {
     ];
 
     $plugin = S3::create($container, $configuration, '', '');
-    $this->assertSame('https://s3-eu-west-1.amazonaws.com/example-bucket/foo%201.html', $plugin->getExternalUrl('s3://foo 1.html'));
+    $this->assertInstanceOf(S3::class, $plugin);
   }
 
   public function testCreateUsingNonAwsConfiguration() {
