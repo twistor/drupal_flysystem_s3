@@ -8,11 +8,15 @@ php:
 matrix:
   fast_finish: true
 
+env:
+  - DRUPAL_BRANCH="8.1.x"
+  - DRUPAL_BRANCH="8.2.x"
+
 install:
   - composer self-update
   - cd ..
 
-  - git clone --depth 1 --branch 8.1.x https://git.drupal.org/project/drupal.git
+  - git clone --depth 1 --branch $DRUPAL_BRANCH https://git.drupal.org/project/drupal.git
   - git clone --depth 1 --branch 8.x-1.x https://git.drupal.org/project/composer_manager.git
   - git clone --depth 1 --branch 8.x-1.x https://git.drupal.org/project/flysystem.git
 
