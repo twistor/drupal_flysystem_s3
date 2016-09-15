@@ -6,7 +6,7 @@ use Drupal\flysystem_s3\AwsCacheAdapter;
 use Drupal\Core\Cache\MemoryBackend;
 
 /**
- * @coversDefaultClass \Druapl\flysystem_s3\AwsCacheAdapter
+ * @coversDefaultClass \Drupal\flysystem_s3\AwsCacheAdapter
  * @covers \Drupal\flysystem_s3\AwsCacheAdapter
  * @group flysystem_s3
  */
